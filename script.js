@@ -4,7 +4,7 @@ const USERS = {
   },
   GOOGLE_CONFIG = {
     client_id: "30896238069-4qccgpqt8iu5935v1fa7qbag7ve36m3m.apps.googleusercontent.com",
-    api_key: "",
+    api_key: "AIzaSyBBWWwug-UcevBmNa7sgypGFZjLfpZusEo",
     discovery_doc: "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
     scopes: "https://www.googleapis.com/auth/drive",
   };
