@@ -1,17 +1,21 @@
 const USERS = {
     admin: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a918",
     user: "04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
-  },
-  GOOGLE_CONFIG = {
+  };
+
+const GOOGLE_CONFIG = {
     client_id: "30896238069-4qccgpqt8iu5935v1fa7qbag7ve36m3m.apps.googleusercontent.com",
     api_key: "AIzaSyBBWWwug-UcevBmNa7sgypGFZjLfpZusEo",
     discovery_doc: "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
     scopes: "https://www.googleapis.com/auth/drive.readonly",
-  };
+};
 
-let gapi_loaded = false,
-  google_initialized = false,
-  current_user = null;
+let gapi_loaded = false;
+let gis_loaded = false;
+let google_initialized = false;
+let current_user = null;
+let tokenClient = null;
+let accessToken = null;
 
 function hashPassword(password) {
   return CryptoJS.SHA256(password).toString();
@@ -62,53 +66,91 @@ document
   });
 
 function loadGoogleAPI() {
+  // Load Google API (gapi)
   if (typeof gapi === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://apis.google.com/js/api.js";
-    script.onload = initializeGAPI;
-    script.onerror = () => {
+    const gapiScript = document.createElement("script");
+    gapiScript.src = "https://apis.google.com/js/api.js";
+    gapiScript.onload = initializeGAPI;
+    gapiScript.onerror = () => {
       showError("Failed to load Google API. Please check your internet connection.");
     };
-    document.head.appendChild(script);
+    document.head.appendChild(gapiScript);
   } else {
     initializeGAPI();
+  }
+
+  // Load Google Identity Services (GIS)
+  if (typeof google === "undefined" || !google.accounts) {
+    const gisScript = document.createElement("script");
+    gisScript.src = "https://accounts.google.com/gsi/client";
+    gisScript.onload = initializeGIS;
+    gisScript.onerror = () => {
+      showError("Failed to load Google Identity Services.");
+    };
+    document.head.appendChild(gisScript);
+  } else {
+    initializeGIS();
   }
 }
 
 async function initializeGAPI() {
   try {
-    // Load the API
     await new Promise((resolve, reject) => {
-      gapi.load("client:auth2", {
+      gapi.load("client", {
         callback: resolve,
         onerror: reject
       });
     });
     
-    gapi_loaded = true;
-
-    // Initialize the client
     await gapi.client.init({
       apiKey: GOOGLE_CONFIG.api_key,
-      clientId: GOOGLE_CONFIG.client_id,
       discoveryDocs: [GOOGLE_CONFIG.discovery_doc],
-      scope: GOOGLE_CONFIG.scopes,
     });
 
-    google_initialized = true;
-    
-    // Check if already signed in
-    const authInstance = gapi.auth2.getAuthInstance();
-    if (authInstance.isSignedIn.get()) {
-      updateDriveStatus(true);
-      showElement("driveContent");
-      showElement("refreshFilesBtn");
-      loadDriveFiles();
-    }
+    gapi_loaded = true;
+    checkIfFullyInitialized();
     
   } catch (error) {
-    console.error("Error initializing Google API:", error);
-    showError("Failed to initialize Google Drive connection. Please try refreshing the page.");
+    console.error("Error initializing GAPI:", error);
+    showError("Failed to initialize Google API client.");
+  }
+}
+
+function initializeGIS() {
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CONFIG.client_id,
+      scope: GOOGLE_CONFIG.scopes,
+      callback: (tokenResponse) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          accessToken = tokenResponse.access_token;
+          gapi.client.setToken({access_token: accessToken});
+          updateDriveStatus(true);
+          showElement("driveContent");
+          showElement("refreshFilesBtn");
+          hideElement("connectDriveBtn");
+          loadDriveFiles();
+          showSuccess("Successfully connected to Google Drive!");
+        }
+      },
+      error_callback: (error) => {
+        console.error("OAuth error:", error);
+        showError("Authentication failed. Please try again.");
+      }
+    });
+
+    gis_loaded = true;
+    checkIfFullyInitialized();
+    
+  } catch (error) {
+    console.error("Error initializing GIS:", error);
+    showError("Failed to initialize Google Identity Services.");
+  }
+}
+
+function checkIfFullyInitialized() {
+  if (gapi_loaded && gis_loaded) {
+    google_initialized = true;
   }
 }
 
@@ -117,29 +159,21 @@ document
   .getElementById("connectDriveBtn")
   .addEventListener("click", async function () {
     if (!google_initialized) {
-      showError("Google API not initialized. Please wait and try again.");
+      showError("Google services not initialized. Please wait and try again.");
+      return;
+    }
+
+    if (!tokenClient) {
+      showError("Authentication client not ready. Please refresh and try again.");
       return;
     }
 
     try {
-      const authInstance = gapi.auth2.getAuthInstance();
-      const user = await authInstance.signIn();
-      
-      if (user.isSignedIn()) {
-        updateDriveStatus(true);
-        showElement("driveContent");
-        showElement("refreshFilesBtn");
-        hideElement("connectDriveBtn");
-        loadDriveFiles();
-        showSuccess("Successfully connected to Google Drive!");
-      }
+      // Request access token
+      tokenClient.requestAccessToken({prompt: 'consent'});
     } catch (error) {
-      console.error("Error connecting to Google Drive:", error);
-      if (error.error === 'popup_blocked_by_browser') {
-        showError("Popup blocked! Please allow popups for this site and try again.");
-      } else {
-        showError("Failed to connect to Google Drive. Please try again.");
-      }
+      console.error("Error requesting access token:", error);
+      showError("Failed to authenticate with Google. Please try again.");
     }
   });
 
@@ -161,6 +195,11 @@ function updateDriveStatus(connected) {
 async function loadDriveFiles() {
   const fileListElement = document.getElementById("fileList");
   fileListElement.innerHTML = '<div class="loading"><div class="spinner"></div>Loading files...</div>';
+
+  if (!accessToken) {
+    fileListElement.innerHTML = '<div class="loading" style="color: #dc3545;">Not authenticated. Please connect to Google Drive first.</div>';
+    return;
+  }
 
   try {
     const response = await gapi.client.drive.files.list({
@@ -200,7 +239,17 @@ async function loadDriveFiles() {
     fileListElement.innerHTML = fileListHTML;
   } catch (error) {
     console.error("Error loading files:", error);
-    fileListElement.innerHTML = '<div class="loading" style="color: #dc3545;">Error loading files. Please try refreshing.</div>';
+    
+    if (error.status === 401) {
+      showError("Authentication expired. Please reconnect to Google Drive.");
+      updateDriveStatus(false);
+      hideElement("driveContent");
+      hideElement("refreshFilesBtn");
+      accessToken = null;
+      gapi.client.setToken(null);
+    } else {
+      fileListElement.innerHTML = '<div class="loading" style="color: #dc3545;">Error loading files. Please try refreshing.</div>';
+    }
   }
 }
 
@@ -235,14 +284,17 @@ document
 
 // Logout
 document.getElementById("logoutBtn").addEventListener("click", function () {
-  if (google_initialized && gapi.auth2) {
-    const authInstance = gapi.auth2.getAuthInstance();
-    if (authInstance.isSignedIn.get()) {
-      authInstance.signOut();
-    }
+  // Revoke the access token
+  if (accessToken && google && google.accounts && google.accounts.oauth2) {
+    google.accounts.oauth2.revoke(accessToken, () => {
+      console.log('Access token revoked.');
+    });
   }
 
   current_user = null;
+  accessToken = null;
+  gapi.client.setToken(null);
+  
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
   updateDriveStatus(false);
@@ -258,10 +310,7 @@ console.log("🔐 Demo Credentials:");
 console.log("Username: admin, Password: admin123");
 console.log("Username: user, Password: user123");
 console.log("");
-console.log("📋 Setup Instructions for GitHub Pages:");
-console.log("1. Go to Google Cloud Console (https://console.cloud.google.com)");
-console.log("2. Create a new project or select existing one");
-console.log("3. Enable Google Drive API");
-console.log("4. Go to Credentials and create OAuth 2.0 Client ID");
-console.log("5. Add your GitHub Pages URL to authorized origins");
-console.log("6. Update the credentials in the code if needed");
+console.log("📋 This app now uses Google Identity Services (GIS)");
+console.log("✅ Modern authentication system");
+console.log("✅ Better security and user experience");
+console.log("✅ Compatible with latest Google APIs");
