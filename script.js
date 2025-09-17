@@ -8,9 +8,11 @@ const USERS = {
     discovery_doc: "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
     scopes: "https://www.googleapis.com/auth/drive",
   };
-let gapi_loaded = !1,
-  google_initialized = !1,
-  current_user = null;
+
+let gapi_loaded = false,
+  google_initialized = false,
+  current_user = null,
+  tokenClient = null;
 
 function hashPassword(e) {
   return CryptoJS.SHA256(e).toString();
@@ -23,35 +25,37 @@ function hideElement(e) {
 }
 function showError(e) {
   const t = document.getElementById("errorMessage");
-  (t.textContent = e),
-    (t.style.display = "block"),
-    setTimeout(() => (t.style.display = "none"), 5e3);
+  t.textContent = e;
+  t.style.display = "block";
+  setTimeout(() => (t.style.display = "none"), 5000);
 }
 function showSuccess(e) {
   const t = document.getElementById("successMessage");
-  (t.textContent = e),
-    (t.style.display = "block"),
-    setTimeout(() => (t.style.display = "none"), 3e3);
+  t.textContent = e;
+  t.style.display = "block";
+  setTimeout(() => (t.style.display = "none"), 3000);
 }
 
-document
-  .getElementById("loginFormElement")
-  .addEventListener("submit", function (e) {
-    e.preventDefault();
-    const t = document.getElementById("username").value,
-      n = document.getElementById("password").value,
-      a = hashPassword(n);
-    USERS[t] && USERS[t] === a
-      ? ((current_user = t),
-        showSuccess("Login successful!"),
-        setTimeout(() => {
-          hideElement("loginForm"),
-            showElement("portalContent"),
-            loadGoogleAPI();
-        }, 1e3))
-      : showError("Invalid username or password");
-  });
+// Handle login form
+document.getElementById("loginFormElement").addEventListener("submit", function (e) {
+  e.preventDefault();
+  const t = document.getElementById("username").value,
+    n = document.getElementById("password").value,
+    a = hashPassword(n);
+  if (USERS[t] && USERS[t] === a) {
+    current_user = t;
+    showSuccess("Login successful!");
+    setTimeout(() => {
+      hideElement("loginForm");
+      showElement("portalContent");
+      loadGoogleAPI();
+    }, 1000);
+  } else {
+    showError("Invalid username or password");
+  }
+});
 
+// Load Google API client library
 function loadGoogleAPI() {
   if (typeof gapi === "undefined") {
     let e = document.createElement("script");
@@ -63,58 +67,55 @@ function loadGoogleAPI() {
   }
 }
 
+// Initialize GAPI + GIS token client
 async function initializeGAPI() {
   try {
-    console.log("[DEBUG] Loading gapi client:auth2...");
-    await new Promise((resolve) => gapi.load("client:auth2", resolve));
-    gapi_loaded = !0;
+    console.log("[DEBUG] Loading gapi client...");
+    await new Promise((resolve) => gapi.load("client", resolve));
+    gapi_loaded = true;
 
-    if (GOOGLE_CONFIG.client_id.includes("YOUR_")) {
-      document.getElementById("connectDriveBtn").innerHTML = "⚠️ Setup Required";
-      document.getElementById("connectDriveBtn").disabled = !0;
-      showError("Google API credentials not configured. Please set up your Client ID and API Key.");
-      return;
-    }
-
-    console.log("[DEBUG] Initializing gapi.client with config:", GOOGLE_CONFIG);
+    console.log("[DEBUG] Initializing gapi client with API key...");
     await gapi.client.init({
       apiKey: GOOGLE_CONFIG.api_key,
-      clientId: GOOGLE_CONFIG.client_id,
       discoveryDocs: [GOOGLE_CONFIG.discovery_doc],
-      scope: GOOGLE_CONFIG.scopes,
     });
 
-    // ✅ Important fix: initialize auth2 explicitly to avoid idpiframe_initialization_failed
-    console.log("[DEBUG] Initializing gapi.auth2...");
-    await gapi.auth2.init({ client_id: GOOGLE_CONFIG.client_id });
+    console.log("[DEBUG] Creating GIS token client...");
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CONFIG.client_id,
+      scope: GOOGLE_CONFIG.scopes,
+      callback: (response) => {
+        if (response.error) {
+          console.error("Error fetching access token:", response);
+          showError("Failed to connect to Google Drive");
+          return;
+        }
+        console.log("[DEBUG] Access token received:", response.access_token);
+        gapi.client.setToken({ access_token: response.access_token });
+        updateDriveStatus(true);
+        showElement("driveContent");
+        showElement("refreshFilesBtn");
+        loadDriveFiles();
+      },
+    });
 
-    google_initialized = !0;
-    console.log("[DEBUG] Google API initialized successfully");
+    google_initialized = true;
+    console.log("[DEBUG] Google API initialized successfully (GIS mode)");
   } catch (e) {
     console.error("Error initializing Google API:", e);
     showError("Failed to initialize Google Drive connection");
   }
 }
 
-document
-  .getElementById("connectDriveBtn")
-  .addEventListener("click", async function () {
-    if (!google_initialized) {
-      showError("Google API not initialized");
-      return;
-    }
-    try {
-      const e = gapi.auth2.getAuthInstance();
-      await e.signIn();
-      updateDriveStatus(!0);
-      showElement("driveContent");
-      showElement("refreshFilesBtn");
-      loadDriveFiles();
-    } catch (e) {
-      console.error("Error connecting to Google Drive:", e);
-      showError("Failed to connect to Google Drive");
-    }
-  });
+// Handle "Connect Google Drive" button
+document.getElementById("connectDriveBtn").addEventListener("click", function () {
+  if (!google_initialized) {
+    showError("Google API not initialized");
+    return;
+  }
+  console.log("[DEBUG] Requesting access token...");
+  tokenClient.requestAccessToken();
+});
 
 function updateDriveStatus(e) {
   const t = document.getElementById("driveStatus");
@@ -185,27 +186,13 @@ function openFile(e) {
 
 document.getElementById("refreshFilesBtn").addEventListener("click", loadDriveFiles);
 document.getElementById("logoutBtn").addEventListener("click", function () {
-  if (google_initialized && gapi.auth2) {
-    const e = gapi.auth2.getAuthInstance();
-    e.isSignedIn.get() && e.signOut();
-  }
   current_user = null;
-  document.getElementById("username").value = "";
-  document.getElementById("password").value = "";
-  updateDriveStatus(!1);
+  updateDriveStatus(false);
   hideElement("driveContent");
   hideElement("refreshFilesBtn");
   hideElement("portalContent");
   showElement("loginForm");
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
   showSuccess("Logged out successfully");
 });
-
-console.log("Demo Credentials:");
-console.log("Username: admin, Password: admin123");
-console.log("Username: user, Password: user123");
-console.log("");
-console.log("To enable Google Drive integration:");
-console.log("1. Go to Google Cloud Console");
-console.log("2. Create a project and enable Drive API");
-console.log("3. Create credentials (OAuth 2.0 Client ID and API Key)");
-console.log("4. Replace GOOGLE_CONFIG values in the code");
