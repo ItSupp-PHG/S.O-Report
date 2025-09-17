@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Report S.O Harian</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link rel="stylesheet" href="style.css" />
+    <script src="updated_script.js" defer></script>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Login Form -->
+      <div id="loginForm" class="login-form">
+        <div class="logo">
+          <h1>🌐 S.O</h1>
+          <p>Report Harian Stock Opname</p>
+        </div>
+
+        <form id="loginFormElement">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required />
+          </div>
+
+          <button type="submit" class="login-btn">
+            <span id="loginBtnText">Login</span>
+          </button>
+        </form>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+      </div>
+
+      <!-- Portal Content -->
+      <div id="portalContent" class="portal-content">
+        <div class="logo">
+          <h1>🌐 Portal Dashboard</h1>
+          <p>Welcome back!</p>
+        </div>
+
+        <div id="driveStatus" class="status-indicator status-disconnected">
+          📂 Google Drive: Not Connected
+        </div>
+
+        <div class="drive-section">
+          <button id="connectDriveBtn" class="drive-connect-btn">
+            Connect to Google Drive
+          </button>
+          <button
+            id="refreshFilesBtn"
+            class="drive-connect-btn"
+            style="display: none"
+          >
+            Refresh Files
+          </button>
+        </div>
+
+        <div id="driveContent" style="display: none">
+          <h3>📁 Your Google Drive Files</h3>
+          <div id="fileList" class="file-list"></div>
+        </div>
+
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </body>
+</html>
