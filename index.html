@@ -3,17 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <title>Report S.O Harian</title>
+    <title>OAuth Debug - Report S.O Harian</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         background: linear-gradient(135deg, #3b82f6 0%, #bf0004 100%);
@@ -21,6 +13,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        margin: 0;
       }
       .container {
         background: rgba(255, 255, 255, 0.95);
@@ -29,514 +22,199 @@
         padding: 2rem;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         width: 100%;
-        max-width: 400px;
-        transition: all 0.3s ease;
+        max-width: 500px;
       }
-      .login-form {
-        display: block;
-      }
-      .portal-content {
-        display: none;
-      }
-      .logo {
-        text-align: center;
-        margin-bottom: 2rem;
-      }
-      .logo h1 {
-        color: #4285f4;
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-      }
-      .logo p {
-        color: #666;
-        font-size: 0.9rem;
-      }
-      .form-group {
-        margin-bottom: 1.5rem;
-      }
-      label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: #333;
-        font-weight: 500;
-      }
-      input[type="text"],
-      input[type="password"] {
-        width: 100%;
-        padding: 12px 16px;
-        border: 2px solid #e1e5e9;
-        border-radius: 10px;
-        font-size: 1rem;
-        transition: all 0.3s ease;
+      .debug-info {
         background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        font-family: monospace;
+        font-size: 12px;
       }
-      input[type="text"]:focus,
-      input[type="password"]:focus {
-        outline: none;
-        border-color: #4285f4;
-        background: #fff;
-        transform: translateY(-1px);
-      }
-      .login-btn {
-        width: 100%;
-        padding: 14px;
-        background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-bottom: 1rem;
-      }
-      .login-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(66, 133, 244, 0.3);
-      }
-      .error-message, .success-message {
-        text-align: center;
-        margin-top: 1rem;
-        font-size: 0.9rem;
-        display: none;
-        padding: 10px;
-        border-radius: 5px;
-      }
-      .error-message {
-        color: #dc3545;
-        background: rgba(220, 53, 69, 0.1);
-        border: 1px solid rgba(220, 53, 69, 0.2);
-      }
-      .success-message {
-        color: #28a745;
-        background: rgba(40, 167, 69, 0.1);
-        border: 1px solid rgba(40, 167, 69, 0.2);
-      }
-      .drive-section {
-        text-align: center;
-        margin-bottom: 2rem;
-      }
-      .drive-connect-btn {
+      .button {
         background: #4285f4;
-        color: #fff;
+        color: white;
         border: none;
         padding: 12px 24px;
         border-radius: 8px;
         cursor: pointer;
-        font-size: 1rem;
-        margin: 10px;
+        font-size: 16px;
+        margin: 10px 5px;
         transition: all 0.3s ease;
       }
-      .drive-connect-btn:hover {
+      .button:hover {
         background: #3367d6;
-        transform: translateY(-1px);
       }
-      .drive-connect-btn:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-      }
-      .file-list {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        margin-top: 1rem;
-      }
-      .file-item {
+      .error {
+        color: #dc3545;
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.2);
         padding: 10px;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .file-item:hover {
-        background: #f5f5f5;
-      }
-      .file-icon {
-        margin-right: 10px;
-        width: 20px;
-        height: 20px;
-      }
-      .logout-btn {
-        background: #dc3545;
-        color: #fff;
-        border: none;
-        padding: 8px 16px;
         border-radius: 5px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        margin-top: 1rem;
-        width: 100%;
+        margin: 10px 0;
       }
-      .logout-btn:hover {
-        background: #c82333;
+      .success {
+        color: #28a745;
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.2);
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
       }
-      .loading {
-        text-align: center;
-        padding: 20px;
-        color: #666;
-      }
-      .spinner {
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid #4285f4;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 1s linear infinite;
-        display: inline-block;
-        margin-right: 10px;
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      .status-indicator {
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        margin-bottom: 1rem;
-        text-align: center;
-      }
-      .status-connected {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-      .status-disconnected {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
+      h1 { color: #4285f4; text-align: center; }
+      h3 { color: #333; margin-top: 20px; }
     </style>
   </head>
   <body>
     <div class="container">
-      <!-- Login Form -->
-      <div id="loginForm" class="login-form">
-        <div class="logo">
-          <h1>🌾 S.O</h1>
-          <p>Report Harian Stock Opname</p>
-        </div>
-
-        <form id="loginFormElement">
-          <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required />
-          </div>
-
-          <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required />
-          </div>
-
-          <button type="submit" class="login-btn">
-            <span id="loginBtnText">Login</span>
-          </button>
-        </form>
-
-        <div id="errorMessage" class="error-message"></div>
-        <div id="successMessage" class="success-message"></div>
+      <h1>🔧 OAuth Debug Tool</h1>
+      
+      <div class="debug-info">
+        <strong>Current URL:</strong><br>
+        <span id="currentUrl"></span><br><br>
+        <strong>Origin:</strong><br>
+        <span id="currentOrigin"></span><br><br>
+        <strong>Protocol:</strong><br>
+        <span id="currentProtocol"></span>
       </div>
 
-      <!-- Portal Content -->
-      <div id="portalContent" class="portal-content">
-        <div class="logo">
-          <h1>🌾 Portal Dashboard</h1>
-          <p>Welcome back!</p>
-        </div>
-
-        <div id="driveStatus" class="status-indicator status-disconnected">
-          📂 Google Drive: Not Connected
-        </div>
-
-        <div class="drive-section">
-          <button id="connectDriveBtn" class="drive-connect-btn">
-            Connect to Google Drive
-          </button>
-          <button
-            id="refreshFilesBtn"
-            class="drive-connect-btn"
-            style="display: none"
-          >
-            Refresh Files
-          </button>
-        </div>
-
-        <div id="driveContent" style="display: none">
-          <h3>📁 Your Google Drive Files</h3>
-          <div id="fileList" class="file-list"></div>
-        </div>
-
-        <button id="logoutBtn" class="logout-btn">Logout</button>
+      <h3>📋 Required OAuth Settings</h3>
+      <div class="debug-info">
+        <strong>Add to "Authorized JavaScript origins":</strong><br>
+        <span id="requiredOrigin" style="background: yellow;"></span><br><br>
+        
+        <strong>Add to "Authorized redirect URIs":</strong><br>
+        <span id="requiredRedirect" style="background: yellow;"></span>
       </div>
+
+      <h3>🧪 Test OAuth</h3>
+      <button class="button" onclick="testOAuth()">Test Google OAuth</button>
+      
+      <div id="result"></div>
+
+      <h3>📝 Instructions</h3>
+      <ol>
+        <li><strong>Go to Google Cloud Console</strong></li>
+        <li><strong>APIs & Services → OAuth Consent Screen</strong></li>
+        <li><strong>Click "PUBLISH APP" (Important!)</strong></li>
+        <li><strong>APIs & Services → Credentials</strong></li>
+        <li><strong>Edit your OAuth 2.0 Client ID</strong></li>
+        <li><strong>Add the highlighted URLs above</strong></li>
+        <li><strong>Save and wait 5-10 minutes</strong></li>
+        <li><strong>Test again</strong></li>
+      </ol>
     </div>
 
     <script>
-      const USERS = {
-          admin: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a918",
-          user: "04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb",
-        };
+      const CLIENT_ID = "30896238069-4qccgpqt8iu5935v1fa7qbag7ve36m3m.apps.googleusercontent.com";
+      const SCOPES = "https://www.googleapis.com/auth/drive.readonly";
 
-      const GOOGLE_CONFIG = {
-          client_id: "30896238069-4qccgpqt8iu5935v1fa7qbag7ve36m3m.apps.googleusercontent.com",
-          api_key: "AIzaSyBBWWwug-UcevBmNa7sgypGFZjLfpZusEo",
-          scopes: "https://www.googleapis.com/auth/drive.readonly",
-      };
+      // Display current URL info
+      document.getElementById('currentUrl').textContent = window.location.href;
+      document.getElementById('currentOrigin').textContent = window.location.origin;
+      document.getElementById('currentProtocol').textContent = window.location.protocol;
+      
+      // Show required settings
+      document.getElementById('requiredOrigin').textContent = window.location.origin;
+      document.getElementById('requiredRedirect').textContent = window.location.href;
 
-      let google_initialized = false;
-      let current_user = null;
-      let accessToken = null;
+      let google_loaded = false;
 
-      function hashPassword(password) {
-        return CryptoJS.SHA256(password).toString();
-      }
-
-      function showElement(id) {
-        document.getElementById(id).style.display = "block";
-      }
-
-      function hideElement(id) {
-        document.getElementById(id).style.display = "none";
-      }
-
-      function showError(message) {
-        const errorElement = document.getElementById("errorMessage");
-        errorElement.textContent = message;
-        errorElement.style.display = "block";
-        setTimeout(() => errorElement.style.display = "none", 5000);
-      }
-
-      function showSuccess(message) {
-        const successElement = document.getElementById("successMessage");
-        successElement.textContent = message;
-        successElement.style.display = "block";
-        setTimeout(() => successElement.style.display = "none", 3000);
-      }
-
-      // Login form handler
-      document
-        .getElementById("loginFormElement")
-        .addEventListener("submit", function (event) {
-          event.preventDefault();
-          const username = document.getElementById("username").value;
-          const password = document.getElementById("password").value;
-          const hashedPassword = hashPassword(password);
-          
-          if (USERS[username] && USERS[username] === hashedPassword) {
-            current_user = username;
-            showSuccess("Login successful!");
-            setTimeout(() => {
-              hideElement("loginForm");
-              showElement("portalContent");
-              loadGoogleServices();
-            }, 1000);
-          } else {
-            showError("Invalid username or password");
-          }
-        });
-
+      // Load Google Identity Services
       function loadGoogleServices() {
-        // Load Google Identity Services ONLY
         if (typeof google === "undefined" || !google.accounts) {
-          const gisScript = document.createElement("script");
-          gisScript.src = "https://accounts.google.com/gsi/client";
-          gisScript.onload = () => {
-            google_initialized = true;
-            console.log("✅ Google Identity Services loaded successfully");
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.onload = () => {
+            google_loaded = true;
+            showMessage("✅ Google Identity Services loaded", "success");
           };
-          gisScript.onerror = () => {
-            showError("Failed to load Google Identity Services.");
+          script.onerror = () => {
+            showMessage("❌ Failed to load Google Identity Services", "error");
           };
-          document.head.appendChild(gisScript);
+          document.head.appendChild(script);
         } else {
-          google_initialized = true;
+          google_loaded = true;
+          showMessage("✅ Google Identity Services already loaded", "success");
         }
       }
 
-      // Connect to Google Drive
-      document
-        .getElementById("connectDriveBtn")
-        .addEventListener("click", async function () {
-          if (!google_initialized) {
-            showError("Google services not ready. Please wait a moment and try again.");
-            return;
-          }
-
-          try {
-            const tokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: GOOGLE_CONFIG.client_id,
-              scope: GOOGLE_CONFIG.scopes,
-              callback: handleAuthCallback,
-            });
-
-            tokenClient.requestAccessToken({ prompt: 'consent' });
-          } catch (error) {
-            console.error("Error requesting access token:", error);
-            showError("Failed to authenticate. Please try again.");
-          }
-        });
-
-      function handleAuthCallback(tokenResponse) {
-        if (tokenResponse && tokenResponse.access_token) {
-          accessToken = tokenResponse.access_token;
-          updateDriveStatus(true);
-          showElement("driveContent");
-          showElement("refreshFilesBtn");
-          hideElement("connectDriveBtn");
-          loadDriveFiles();
-          showSuccess("Successfully connected to Google Drive!");
-        } else {
-          console.error("Authentication failed:", tokenResponse);
-          showError("Authentication failed. Please try again.");
-        }
+      function showMessage(message, type) {
+        const result = document.getElementById('result');
+        const div = document.createElement('div');
+        div.className = type;
+        div.innerHTML = message;
+        result.appendChild(div);
       }
 
-      function updateDriveStatus(connected) {
-        const statusElement = document.getElementById("driveStatus");
-        const connectBtn = document.getElementById("connectDriveBtn");
+      function testOAuth() {
+        document.getElementById('result').innerHTML = '';
         
-        if (connected) {
-          statusElement.textContent = "📂 Google Drive: Connected";
-          statusElement.className = "status-indicator status-connected";
-          connectBtn.style.display = "none";
-        } else {
-          statusElement.textContent = "📂 Google Drive: Not Connected";
-          statusElement.className = "status-indicator status-disconnected";
-          connectBtn.style.display = "inline-block";
-        }
-      }
-
-      async function loadDriveFiles() {
-        const fileListElement = document.getElementById("fileList");
-        fileListElement.innerHTML = '<div class="loading"><div class="spinner"></div>Loading files...</div>';
-
-        if (!accessToken) {
-          fileListElement.innerHTML = '<div class="loading" style="color: #dc3545;">Not authenticated. Please connect to Google Drive first.</div>';
-          return;
-        }
-
-        try {
-          const response = await fetch(`https://www.googleapis.com/drive/v3/files?pageSize=20&fields=nextPageToken,files(id,name,mimeType,modifiedTime,size,webViewLink)&orderBy=modifiedTime desc&key=${GOOGLE_CONFIG.api_key}`, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              throw new Error("Authentication expired");
+        if (!google_loaded) {
+          showMessage("⏳ Loading Google services...", "success");
+          loadGoogleServices();
+          setTimeout(() => {
+            if (google_loaded) {
+              performOAuthTest();
             }
-            throw new Error(`API request failed: ${response.status}`);
-          }
+          }, 2000);
+        } else {
+          performOAuthTest();
+        }
+      }
 
-          const data = await response.json();
-          const files = data.files;
-
-          if (!files || files.length === 0) {
-            fileListElement.innerHTML = '<div class="loading">No files found in your Google Drive</div>';
-            return;
-          }
-
-          let fileListHTML = "";
-          files.forEach((file) => {
-            const icon = getFileIcon(file.mimeType);
-            const size = file.size ? formatFileSize(parseInt(file.size)) : "Unknown size";
-            const modifiedDate = new Date(file.modifiedTime).toLocaleDateString();
-            
-            fileListHTML += `
-              <div class="file-item">
-                <span class="file-icon">${icon}</span>
-                <div style="flex-grow: 1;">
-                  <div style="font-weight: 500;">${file.name}</div>
-                  <div style="font-size: 0.8rem; color: #666;">${size} • Modified ${modifiedDate}</div>
-                </div>
-                <button onclick="openFile('${file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`}')" 
-                        style="background: #4285f4; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
-                  Open
-                </button>
-              </div>
-            `;
-          });
-
-          fileListElement.innerHTML = fileListHTML;
-        } catch (error) {
-          console.error("Error loading files:", error);
+      function performOAuthTest() {
+        try {
+          showMessage("🔄 Initializing OAuth client...", "success");
           
-          if (error.message === "Authentication expired") {
-            showError("Authentication expired. Please reconnect to Google Drive.");
-            updateDriveStatus(false);
-            hideElement("driveContent");
-            hideElement("refreshFilesBtn");
-            accessToken = null;
-          } else {
-            fileListElement.innerHTML = '<div class="loading" style="color: #dc3545;">Error loading files. Please try refreshing.</div>';
-            showError("Failed to load files. Please try again.");
-          }
-        }
-      }
-
-      function getFileIcon(mimeType) {
-        if (mimeType.includes("folder")) return "📁";
-        if (mimeType.includes("document")) return "📄";
-        if (mimeType.includes("spreadsheet")) return "📊";
-        if (mimeType.includes("presentation")) return "📽️";
-        if (mimeType.includes("image")) return "🖼️";
-        if (mimeType.includes("video")) return "🎥";
-        if (mimeType.includes("audio")) return "🎵";
-        if (mimeType.includes("pdf")) return "📕";
-        return "📄";
-      }
-
-      function formatFileSize(bytes) {
-        if (bytes === 0) return "0 Bytes";
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-      }
-
-      function openFile(url) {
-        window.open(url, "_blank");
-      }
-
-      // Refresh files
-      document
-        .getElementById("refreshFilesBtn")
-        .addEventListener("click", loadDriveFiles);
-
-      // Logout
-      document.getElementById("logoutBtn").addEventListener("click", function () {
-        if (accessToken && google && google.accounts && google.accounts.oauth2) {
-          google.accounts.oauth2.revoke(accessToken, () => {
-            console.log('Access token revoked.');
+          const tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: (tokenResponse) => {
+              if (tokenResponse && tokenResponse.access_token) {
+                showMessage("🎉 SUCCESS! OAuth working correctly!", "success");
+                showMessage(`Token: ${tokenResponse.access_token.substring(0, 20)}...`, "success");
+              } else {
+                showMessage("❌ No token received", "error");
+                console.log("Token response:", tokenResponse);
+              }
+            },
+            error_callback: (error) => {
+              showMessage(`❌ OAuth Error: ${error.type || error.error}`, "error");
+              if (error.details) {
+                showMessage(`Details: ${error.details}`, "error");
+              }
+              
+              // Specific error handling
+              if (error.type === "popup_blocked_by_browser") {
+                showMessage("💡 Solution: Allow popups for this site", "error");
+              } else if (error.error === "access_denied") {
+                showMessage("💡 Solution: Check OAuth consent screen is PUBLISHED", "error");
+                showMessage("💡 Solution: Verify authorized origins are correct", "error");
+              }
+              
+              console.error("Full error:", error);
+            }
           });
+
+          showMessage("🚀 Requesting access token...", "success");
+          tokenClient.requestAccessToken({ prompt: 'consent' });
+          
+        } catch (error) {
+          showMessage(`❌ Error: ${error.message}`, "error");
+          console.error("OAuth test error:", error);
         }
+      }
 
-        current_user = null;
-        accessToken = null;
-        
-        document.getElementById("username").value = "";
-        document.getElementById("password").value = "";
-        updateDriveStatus(false);
-        hideElement("driveContent");
-        hideElement("refreshFilesBtn");
-        hideElement("portalContent");
-        showElement("loginForm");
-        showSuccess("Logged out successfully");
-      });
+      // Load Google services when page loads
+      window.addEventListener('load', loadGoogleServices);
 
-      // Console instructions
-      console.log("🔐 Demo Credentials:");
-      console.log("Username: admin, Password: admin123");
-      console.log("Username: user, Password: user123");
-      console.log("");
-      console.log("📋 Clean implementation with:");
-      console.log("✅ No deprecated GAPI libraries");
-      console.log("✅ Only Google Identity Services");
-      console.log("✅ Direct REST API calls");
+      // Console info
+      console.log("🔧 OAuth Debug Tool");
+      console.log("Current Origin:", window.location.origin);
+      console.log("Add this to Google Cloud Console authorized origins:", window.location.origin);
     </script>
   </body>
 </html>
