@@ -281,6 +281,9 @@
           <button id="connectDriveBtn" class="drive-connect-btn">
             Connect to Google Drive
           </button>
+          <button id="disconnectDriveBtn" class="drive-connect-btn" style="display: none; background: #dc3545;">
+            Disconnect Drive
+          </button>
           <button
             id="refreshFilesBtn"
             class="drive-connect-btn"
@@ -314,6 +317,7 @@
       let google_initialized = false;
       let current_user = null;
       let accessToken = null;
+      let tokenClient = null;
 
       function hashPassword(password) {
         return CryptoJS.SHA256(password).toString();
@@ -370,6 +374,8 @@
           gisScript.src = "https://accounts.google.com/gsi/client";
           gisScript.onload = () => {
             google_initialized = true;
+            initializeTokenClient();
+            checkExistingAuth();
             console.log("✅ Google Identity Services loaded successfully");
           };
           gisScript.onerror = () => {
@@ -378,25 +384,63 @@
           document.head.appendChild(gisScript);
         } else {
           google_initialized = true;
+          initializeTokenClient();
+          checkExistingAuth();
         }
+      }
+
+      function initializeTokenClient() {
+        try {
+          tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CONFIG.client_id,
+            scope: GOOGLE_CONFIG.scopes,
+            callback: handleAuthCallback,
+          });
+        } catch (error) {
+          console.error("Error initializing token client:", error);
+        }
+      }
+
+      function checkExistingAuth() {
+        // Check if we have a stored valid token
+        const storedToken = sessionStorage.getItem('google_drive_token');
+        const tokenExpiry = sessionStorage.getItem('google_drive_token_expiry');
+        
+        if (storedToken && tokenExpiry) {
+          const now = Date.now();
+          const expiry = parseInt(tokenExpiry);
+          
+          if (now < expiry) {
+            // Token is still valid
+            accessToken = storedToken;
+            updateDriveStatus(true);
+            showElement("driveContent");
+            showElement("refreshFilesBtn");
+            hideElement("connectDriveBtn");
+            loadDriveFiles();
+            console.log("✅ Using existing Google Drive authentication");
+            return;
+          } else {
+            // Token expired, clean up
+            sessionStorage.removeItem('google_drive_token');
+            sessionStorage.removeItem('google_drive_token_expiry');
+          }
+        }
+        
+        // No valid token, show connect button
+        updateDriveStatus(false);
       }
 
       // Connect to Google Drive
       document
         .getElementById("connectDriveBtn")
         .addEventListener("click", async function () {
-          if (!google_initialized) {
+          if (!google_initialized || !tokenClient) {
             showError("Google services not ready. Please wait a moment and try again.");
             return;
           }
 
           try {
-            const tokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: GOOGLE_CONFIG.client_id,
-              scope: GOOGLE_CONFIG.scopes,
-              callback: handleAuthCallback,
-            });
-
             tokenClient.requestAccessToken({ prompt: 'consent' });
           } catch (error) {
             console.error("Error requesting access token:", error);
@@ -407,12 +451,19 @@
       function handleAuthCallback(tokenResponse) {
         if (tokenResponse && tokenResponse.access_token) {
           accessToken = tokenResponse.access_token;
+          
+          // Store token with expiry time (default is 1 hour)
+          const expiryTime = Date.now() + (tokenResponse.expires_in ? tokenResponse.expires_in * 1000 : 3600000);
+          sessionStorage.setItem('google_drive_token', accessToken);
+          sessionStorage.setItem('google_drive_token_expiry', expiryTime.toString());
+          
           updateDriveStatus(true);
           showElement("driveContent");
           showElement("refreshFilesBtn");
           hideElement("connectDriveBtn");
           loadDriveFiles();
           showSuccess("Successfully connected to Google Drive!");
+          console.log("✅ Google Drive connected and token stored");
         } else {
           console.error("Authentication failed:", tokenResponse);
           showError("Authentication failed. Please try again.");
@@ -422,15 +473,18 @@
       function updateDriveStatus(connected) {
         const statusElement = document.getElementById("driveStatus");
         const connectBtn = document.getElementById("connectDriveBtn");
+        const disconnectBtn = document.getElementById("disconnectDriveBtn");
         
         if (connected) {
           statusElement.textContent = "📂 Google Drive: Connected";
           statusElement.className = "status-indicator status-connected";
           connectBtn.style.display = "none";
+          disconnectBtn.style.display = "inline-block";
         } else {
           statusElement.textContent = "📂 Google Drive: Not Connected";
           statusElement.className = "status-indicator status-disconnected";
           connectBtn.style.display = "inline-block";
+          disconnectBtn.style.display = "none";
         }
       }
 
@@ -522,11 +576,14 @@
           console.error("❌ Error loading files:", error);
           
           if (error.message.includes("Authentication expired")) {
-            showError("Authentication expired. Please reconnect to Google Drive.");
+            showError("Session expired. Please reconnect to Google Drive.");
+            // Clear stored token
+            sessionStorage.removeItem('google_drive_token');
+            sessionStorage.removeItem('google_drive_token_expiry');
+            accessToken = null;
             updateDriveStatus(false);
             hideElement("driveContent");
             hideElement("refreshFilesBtn");
-            accessToken = null;
           } else if (error.message.includes("Access denied")) {
             fileListElement.innerHTML = `<div class="loading" style="color: #dc3545;">Access denied. Make sure Google Drive API is enabled in your Google Cloud project.</div>`;
             showError("Google Drive API access denied. Check your API configuration.");
@@ -577,25 +634,45 @@
         .getElementById("refreshFilesBtn")
         .addEventListener("click", loadDriveFiles);
 
+      // Disconnect Google Drive
+      document
+        .getElementById("disconnectDriveBtn")
+        .addEventListener("click", function() {
+          // Revoke the token and clear storage
+          if (accessToken && google && google.accounts && google.accounts.oauth2) {
+            google.accounts.oauth2.revoke(accessToken, () => {
+              console.log('Access token revoked.');
+            });
+          }
+          
+          // Clear stored authentication
+          sessionStorage.removeItem('google_drive_token');
+          sessionStorage.removeItem('google_drive_token_expiry');
+          accessToken = null;
+          
+          updateDriveStatus(false);
+          hideElement("driveContent");
+          hideElement("refreshFilesBtn");
+          showSuccess("Google Drive disconnected");
+        });
+
       // Logout
       document.getElementById("logoutBtn").addEventListener("click", function () {
-        if (accessToken && google && google.accounts && google.accounts.oauth2) {
-          google.accounts.oauth2.revoke(accessToken, () => {
-            console.log('Access token revoked.');
-          });
-        }
-
+        // Don't revoke the token - keep it for next login
+        // Only clear current session
         current_user = null;
-        accessToken = null;
+        // Keep accessToken and stored token for next login
         
         document.getElementById("username").value = "";
         document.getElementById("password").value = "";
-        updateDriveStatus(false);
         hideElement("driveContent");
         hideElement("refreshFilesBtn");
         hideElement("portalContent");
         showElement("loginForm");
         showSuccess("Logged out successfully");
+        
+        // Note: Google Drive connection will be restored on next login
+        console.log("📝 Logged out - Google Drive connection will be restored on next login");
       });
 
       // Console instructions
@@ -603,8 +680,9 @@
       console.log("Username: admin, Password: admin123");
       console.log("Username: user, Password: user123");
       console.log("");
-      console.log("✅ OAuth working correctly!");
-      console.log("📂 Ready to access Google Drive files");
+      console.log("✅ One-time Google Drive connection!");
+      console.log("📂 Connect once, stay connected across logins");
+      console.log("🔄 Use 'Disconnect Drive' if you want to change accounts");
     </script>
   </body>
 </html>
